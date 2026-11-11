@@ -7,8 +7,8 @@ subsystems are pixel, strip, ECAL, preshower, HCAL, DT, CSC, RPC and GEM, plus t
 The input is the RAW data tier. The standard CMSSW `RawToDigi` sequence unpacks it, and the EDAnalyzer
 `EventCsvDumper` (`plugins/EventCsvDumper.cc`) writes the files.
 
-[`csv_map.html`](csv_map.html) shows in 3D which file covers which part of the detector. Open it in a browser; it loads
-three.js from a CDN.
+[`csv_map.html`](https://sgnoohc.github.io/cms-raw-csv/csv_map.html) shows in 3D which file covers which part of the
+detector.
 
 ## Run it from scratch
 
