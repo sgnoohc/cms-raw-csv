@@ -7,6 +7,9 @@ subsystems are pixel, strip, ECAL, preshower, HCAL, DT, CSC, RPC and GEM, plus t
 The input is the RAW data tier. The standard CMSSW `RawToDigi` sequence unpacks it, and the EDAnalyzer
 `EventCsvDumper` (`plugins/EventCsvDumper.cc`) writes the files.
 
+[`csv_map.html`](csv_map.html) shows in 3D which file covers which part of the detector. Open it in a browser; it loads
+three.js from a CDN.
+
 ## Run it from scratch
 
 All you need is `/cvmfs/cms.cern.ch`, network access to the CMS conditions database (see

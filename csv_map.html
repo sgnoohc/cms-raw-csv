@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CMS CSV Map</title>
+<meta name="description" content="Which CSV file written by EventCsvDumper covers which part of the CMS detector, shown as a 3D cutaway.">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #14181d; --ink-2: #48535f; --ink-3: #66717d; --line: #dde2e8;
+    --hover: #eef1f5; --accent-soft: #e3ecfb; --view: #0d1117; --view-ink: #9aa7b4;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a0d11; --panel: #11161c; --ink: #e6ebf0; --ink-2: #aab5c0; --ink-3: #87929d; --line: #252d36;
+      --hover: #19202a; --accent-soft: #1d2a3d; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a0d11; --panel: #11161c; --ink: #e6ebf0; --ink-2: #aab5c0; --ink-3: #87929d; --line: #252d36;
+    --hover: #19202a; --accent-soft: #1d2a3d; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1380px; margin: 0 auto; padding: 20px 16px 32px; }
+  h1 { font-size: 22px; line-height: 1.25; margin: 0 0 4px; font-weight: 650; letter-spacing: -0.01em; }
+  .lede { margin: 0 0 16px; color: var(--ink-2); max-width: 75ch; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 8px; }
+  .ctl { display: inline-flex; align-items: center; gap: 6px; }
+  .ctl > span { font-size: 12px; color: var(--ink-3); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+  .seg button { appearance: none; border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 13px;
+    padding: 5px 10px; min-height: 32px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button:hover { background: var(--hover); }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; min-height: 32px; }
+  .view { position: relative; height: clamp(360px, 68vh, 780px); border-radius: 12px; overflow: hidden; background: var(--view);
+    border: 1px solid var(--line); }
+  .view canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .tip { position: absolute; left: 0; top: 0; pointer-events: none; background: rgba(13, 17, 23, 0.95); color: #e6edf3;
+    border: 1px solid #2d3743; border-radius: 8px; padding: 7px 10px; font-size: 13px; line-height: 1.4; max-width: 300px;
+    opacity: 0; transition: opacity 0.08s; }
+  .tip code { font: 600 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .tip .k { color: #9aa7b4; display: block; }
+  .hint { position: absolute; left: 10px; bottom: 10px; font-size: 12px; color: var(--view-ink); pointer-events: none;
+    background: rgba(13, 17, 23, 0.72); padding: 2px 8px; border-radius: 6px; }
+  .axis { font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--view-ink); }
+  .nogl { color: var(--view-ink); padding: 24px; }
+  .legend { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px 8px; }
+  .legend h2 { font-size: 14px; margin: 2px 8px 2px; font-weight: 650; }
+  .legend .sub { margin: 0 8px 6px; font-size: 12px; color: var(--ink-3); }
+  .fam { margin: 12px 8px 2px; font-size: 12px; color: var(--ink-3); font-weight: 600; letter-spacing: 0.02em; }
+  .row { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; width: 100%; text-align: left; appearance: none;
+    border: 0; background: transparent; color: inherit; font: inherit; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
+  .row:hover, .row:focus-visible { background: var(--hover); }
+  .row[aria-pressed="true"] { background: var(--accent-soft); }
+  .row.dim { opacity: 0.45; }
+  div.row { cursor: default; }
+  div.row:hover { background: transparent; }
+  .sw { width: 18px; height: 18px; border-radius: 5px; background: var(--c); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25); margin-top: 1px; }
+  .sw.none { background: transparent; box-shadow: none; border: 1.5px dashed var(--ink-3); }
+  .row code { font: 600 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink); overflow-wrap: anywhere; }
+  .desc { display: block; font-size: 13px; color: var(--ink-2); }
+  .cov { display: block; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .notes { margin: 16px 0 0; font-size: 13px; color: var(--ink-3); max-width: 95ch; }
+  .notes a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Which CSV file covers which part of CMS</h1>
+  <p class="lede">Each colour is one of the CSV files that <code>EventCsvDumper</code> writes for an event. Drag to turn the detector
+    and scroll to zoom. Point at a file in the list, or at a piece of the detector, to light it up; click to keep only that file.</p>
+  <div class="layout">
+    <section>
+      <div class="toolbar">
+        <div class="ctl"><span>View</span><div class="seg" data-group="view">
+          <button data-v="3d" aria-pressed="true">3D</button><button data-v="side">Side</button><button data-v="end">End-on</button></div></div>
+        <div class="ctl"><span>Zoom</span><div class="seg" data-group="zoom">
+          <button data-v="all" aria-pressed="true">Whole</button><button data-v="calo">Calorimeters</button><button data-v="tracker">Tracker</button><button data-v="pixel">Pixel</button></div></div>
+        <div class="ctl"><span>Cut</span><div class="seg" data-group="cut">
+          <button data-v="quarter" aria-pressed="true">Quarter open</button><button data-v="half">Half open</button><button data-v="closed">Closed</button></div></div>
+        <label class="chk"><input type="checkbox" id="sol" checked> Solenoid</label>
+      </div>
+      <div class="view" id="view" role="img" aria-label="3D cutaway of the CMS detector coloured by CSV file. The list beside it names every file and the region it covers.">
+        <div class="tip" id="tip"></div>
+        <div class="hint">Drag to rotate · scroll to zoom · right-drag to pan</div>
+      </div>
+    </section>
+    <aside class="legend" id="legend" aria-label="CSV files">
+      <h2>CSV files</h2>
+      <p class="sub">r = distance from the beam, z = position along it</p>
+    </aside>
+  </div>
+  <p class="notes">The end-on view shows the half at negative z, cut at z = 0. The pieces are drawn from the channel positions in the files' <code>extent/</code> and <code>inventory/</code> folders
+    (CMSSW 2024 geometry, run 383631). Layer thicknesses, calorimeter depths, the z of the endcap RPC rings and the solenoid are
+    approximate. The iron return yoke is left out. Source and instructions:
+    <a href="https://github.com/sgnoohc/cms-raw-csv">github.com/sgnoohc/cms-raw-csv</a>.</p>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ---- the files: colour = subsystem family (hue) and file within it (lightness)
+const FILES = [
+  { id: 'pixel', fam: 'Tracker', names: ['pixel.csv'], color: '#a3ceff',
+    desc: 'Silicon pixels: four barrel layers (BPix) and three disks on each side (FPix).', cov: 'r 2.6–16.6 cm · |z| < 53 cm' },
+  { id: 'strip', fam: 'Tracker', names: ['strip.csv'], color: '#4087de',
+    desc: 'Silicon strips: inner and outer barrel layers (TIB, TOB), inner disks (TID) and endcaps (TEC).', cov: 'r 23–110 cm · |z| < 272 cm' },
+  { id: 'ecal_barrel', fam: 'ECAL', names: ['ecal_barrel.csv'], color: '#35c5a1',
+    desc: 'ECAL barrel: 61,200 lead-tungstate crystals.', cov: 'front face at r 129 cm · |z| < 271 cm' },
+  { id: 'ecal_endcap', fam: 'ECAL', names: ['ecal_endcap.csv'], color: '#0d8f73',
+    desc: 'ECAL endcaps: 14,648 crystals.', cov: 'front face at |z| 317 cm · r 32–150 cm' },
+  { id: 'ecal_preshower', fam: 'ECAL', names: ['ecal_preshower.csv'], color: '#a0e9d1',
+    desc: 'Preshower: two planes of silicon strips in front of each ECAL endcap.', cov: '|z| 304 and 309 cm · r 38–128 cm' },
+  { id: 'hcal_hbhe', fam: 'HCAL', names: ['hcal_hbhe.csv'], color: '#f9bb51',
+    desc: 'HCAL barrel (HB) and endcaps (HE): brass and plastic scintillator.', cov: 'HB r 181–288 cm · HE from |z| 392 cm' },
+  { id: 'hcal_hf', fam: 'HCAL', names: ['hcal_hf.csv'], color: '#c0571e',
+    desc: 'HCAL forward (HF): steel and quartz fibres around the beam pipe.', cov: '|z| 1115–1280 cm · r 12.5–130 cm' },
+  { id: 'hcal_ho', fam: 'HCAL', names: ['hcal_ho.csv'], color: '#c18a21',
+    desc: 'HCAL outer (HO): scintillator just outside the solenoid.', cov: 'r 377–413 cm · |z| < 706 cm' },
+  { id: 'dt', fam: 'Muon system', names: ['dt.csv'], color: '#ba2b2e',
+    desc: 'Drift tubes: four barrel stations, MB1–MB4.', cov: 'r 416–735 cm · |z| < 655 cm' },
+  { id: 'csc', fam: 'Muon system', names: ['csc_strips.csv', 'csc_wires.csv', 'csc_comparators.csv'], color: '#e373a8',
+    desc: 'Cathode strip chambers: four endcap stations, ME1–ME4. All three files read the same chambers: strips, wire groups and comparator hits.',
+    cov: '|z| 582–1044 cm · r 105–690 cm' },
+  { id: 'rpc', fam: 'Muon system', names: ['rpc.csv'], color: '#875cc6',
+    desc: 'Resistive plate chambers, beside the drift tubes in the barrel and the CSCs in the endcaps.', cov: 'barrel r 414–705 cm · endcap |z| 695–1066 cm' },
+  { id: 'gem', fam: 'Muon system', names: ['gem.csv'], color: '#d9c6fe',
+    desc: 'GEM chambers: GE1/1 in front of ME1/1, GE2/1 in front of ME2/1.', cov: '|z| 565–572 and 794–796 cm · r 130–313 cm' },
+  { id: 'fed', fam: 'No position', names: ['fed.csv'], color: null,
+    desc: 'Data size of every readout board (FED). It has no position, so it is not drawn.', cov: '' },
+];
+const SOLENOID = { id: 'solenoid', names: ['no CSV'], color: '#8b96a3', desc: 'Superconducting solenoid, drawn for orientation.', cov: 'r 295–375 cm · |z| < 625 cm' };
+const BYID = Object.fromEntries([...FILES, SOLENOID].map(f => [f.id, f]));
+
+// ---- the pieces: an outline in (r, z), cm, turned about the beam. poly: 12 for the 12-sided barrel muon stations and HO
+const PIECES = [];
+const rect = (r0, r1, z0, z1) => [[r0, z0], [r1, z0], [r1, z1], [r0, z1]];
+const barrel = (r0, r1, zmax) => rect(r0, r1, -zmax, zmax);
+const disk = (r0, r1, zc, half) => rect(r0, r1, zc - half, zc + half);
+const add = (f, label, p, opt = {}) => PIECES.push({ f, label, p, ...opt });
+const pair = (f, label, p, opt = {}) => { add(f, label + ', +z', p, opt); add(f, label + ', −z', p.map(([r, z]) => [r, -z]), opt); };
+
+[[2.6, 3.6], [6.4, 7.4], [10.5, 11.5], [15.6, 16.6]].forEach(([a, b], i) => add('pixel', `BPix layer ${i + 1}`, barrel(a, b, 27)));
+[[29.2, 35.6], [36.7, 43.1], [46.2, 52.6]].forEach(([a, b], i) => pair('pixel', `FPix disk ${i + 1}`, disk(4.5, 16.2, (a + b) / 2, 1.5)));
+[25.7, 35.4, 42.1, 49.9].forEach((r, i) => add('strip', `TIB layer ${i + 1}`, barrel(r - 1.5, r + 1.5, 67.3)));
+[60.9, 69.2, 78.0, 86.9, 96.6, 108.0].forEach((r, i) => add('strip', `TOB layer ${i + 1}`, barrel(r - 1.5, r + 1.5, 108.9)));
+[[74.3, 84.9], [87.2, 97.8], [100.1, 110.7]].forEach(([a, b], i) => pair('strip', `TID disk ${i + 1}`, disk(22.7, 50.8, (a + b) / 2, 2.5)));
+[[126.1, 137.8, 23.2], [140.0, 151.8, 23.2], [154.1, 165.8, 23.2], [168.0, 179.7, 31.9], [182.0, 193.7, 31.9], [199.5, 211.2, 31.9],
+ [218.5, 230.2, 39.0], [239.1, 250.7, 39.0], [260.5, 272.3, 50.2]].forEach(([a, b, r0], i) => pair('strip', `TEC disk ${i + 1}`, disk(r0, 109.6, (a + b) / 2, 2.5)));
+add('ecal_barrel', 'ECAL barrel', [[129, -271], [129, 271], [152, 300], [152, -300]]);
+pair('ecal_endcap', 'ECAL endcap', [[32, 317], [150, 317], [158, 340], [34, 340]]);
+pair('ecal_preshower', 'Preshower plane 1', rect(38, 128, 303.2, 305.0));
+pair('ecal_preshower', 'Preshower plane 2', rect(39, 128, 307.9, 309.7));
+add('hcal_hbhe', 'HB', [[181, -342], [181, 342], [214, 404], [245, 418], [288, 433], [288, -433], [245, -418], [214, -404]]);
+pair('hcal_hbhe', 'HE', [[39, 392], [171, 392], [245, 420], [288, 440], [288, 560], [56, 560]]);
+pair('hcal_hf', 'HF', rect(12.5, 130, 1115, 1280));
+add('hcal_ho', 'HO', barrel(377, 410, 675), { poly: 12 });
+add('solenoid', 'Solenoid', barrel(295, 375, 625));
+[[417, 444], [498, 526], [605, 633], [707, 735]].forEach(([a, b], i) => add('dt', `MB${i + 1}`, barrel(a, b, 655), { poly: 12 }));
+[['RB1 inner', 411, 416], ['RB1 outer', 448, 454], ['RB2 inner', 490, 496], ['RB2 outer', 530, 536], ['RB3', 596, 602], ['RB4', 698, 704]]
+  .forEach(([l, a, b]) => add('rpc', l, barrel(a, b, 655), { poly: 12 }));
+[['ME1/1', 105, 259, 582, 622], ['ME1/2', 281, 458, 679, 719], ['ME1/3', 514, 674, 689, 702], ['ME2/1', 147, 339, 810, 847.5],
+ ['ME2/2', 364, 690, 810, 847.5], ['ME3/1', 167, 339, 916.5, 954], ['ME3/2', 365, 690, 916.5, 954], ['ME4/1', 187, 343, 1006.5, 1044],
+ ['ME4/2', 364, 690, 1006.5, 1044]].forEach(([l, r0, r1, z0, z1]) => pair('csc', l, rect(r0, r1, z0, z1)));
+[['RE1/2', 308, 446, 721, 726], ['RE1/3', 527, 674, 715, 720], ['RE2/2', 322, 478, 788.8, 793.2], ['RE2/3', 493, 680, 788.8, 793.2],
+ ['RE3/2', 322, 509, 970.8, 975.2], ['RE3/3', 495, 706, 970.8, 975.2], ['RE4/2', 322, 508, 1061.8, 1066.2], ['RE4/3', 493, 680, 1061.8, 1066.2]]
+  .forEach(([l, r0, r1, z0, z1]) => pair('rpc', l, rect(r0, r1, z0, z1)));
+[['GE1/1', 130, 252, 565.4, 571.8], ['GE2/1', 144, 313, 793.6, 796.1]].forEach(([l, r0, r1, z0, z1]) => pair('gem', l, rect(r0, r1, z0, z1)));
+
+// ---- legend
+const legend = document.getElementById('legend');
+const rows = {};
+let fam = null;
+for (const f of FILES) {
+  if (f.fam !== fam) {
+    fam = f.fam;
+    legend.insertAdjacentHTML('beforeend', `<div class="fam">${fam}</div>`);
+  }
+  const el = document.createElement(f.color ? 'button' : 'div');
+  el.className = 'row';
+  if (f.color) { el.type = 'button'; el.setAttribute('aria-pressed', 'false'); el.dataset.file = f.id; }
+  el.innerHTML = `<span class="sw${f.color ? '' : ' none'}" style="--c:${f.color || 'transparent'}"></span>
+    <span><code>${f.names.join(', ')}</code><span class="desc">${f.desc}</span>${f.cov ? `<span class="cov">${f.cov}</span>` : ''}</span>`;
+  legend.appendChild(el);
+  rows[f.id] = el;
+}
+
+// ---- scene
+const view = document.getElementById('view');
+const tip = document.getElementById('tip');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+} catch (e) {
+  view.insertAdjacentHTML('beforeend', '<p class="nogl">This browser could not start WebGL, so the 3D view is not available. The list names every file and the region it covers.</p>');
+  throw e;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x0d1117);
+view.prepend(renderer.domElement);
+const labels = new CSS2DRenderer();
+labels.domElement.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+view.appendChild(labels.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 300);
+scene.add(camera);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x6b7b8c, 1.9));
+const head = new THREE.DirectionalLight(0xffffff, 1.7);
+head.position.set(0.4, 1, 0.6);
+camera.add(head);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.minDistance = 0.15;
+controls.maxDistance = 90;
+
+// the beam (CMS z) runs along the screen's x axis; the lathe's axis is y, so the detector group is turned by -90 degrees
+const det = new THREE.Group();
+det.rotation.z = -Math.PI / 2;
+scene.add(det);
+const beam = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-13.6, 0, 0), new THREE.Vector3(13.6, 0, 0)]),
+  new THREE.LineBasicMaterial({ color: 0x5c6876 }));
+scene.add(beam);
+const ip = new THREE.Points(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3()]),
+  new THREE.PointsMaterial({ color: 0xe6edf3, size: 5, sizeAttenuation: false }));
+scene.add(ip);
+for (const [x, t] of [[13.9, '+z'], [-13.9, '−z']]) {
+  const d = document.createElement('div');
+  d.className = 'axis';
+  d.textContent = t;
+  const o = new CSS2DObject(d);
+  o.position.set(x, 0, 0);
+  scene.add(o);
+}
+
+const mats = {};
+for (const f of [...FILES.filter(f => f.color), SOLENOID]) {
+  const c = new THREE.Color(f.color);
+  mats[f.id] = {
+    color: c,
+    face: new THREE.MeshLambertMaterial({ color: c, flatShading: true, side: THREE.DoubleSide }),
+    cap: new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide }),
+    edge: new THREE.LineBasicMaterial({ color: 0x0d1117, transparent: true, opacity: 0.32 }),
+  };
+}
+const CUTS = { quarter: [0, 1.5 * Math.PI], half: [0.5 * Math.PI, Math.PI], closed: [0, 2 * Math.PI] };
+// End-on view: only the z < 0 half, so the cut at z = 0 shows the barrel's cross-section
+function clipBelow(p) {
+  const out = [];
+  for (let i = 0; i < p.length; i++) {
+    const a = p[i], b = p[(i + 1) % p.length];
+    if (a[1] <= 0) out.push(a);
+    if ((a[1] <= 0) !== (b[1] <= 0)) out.push([a[0] + a[1] / (a[1] - b[1]) * (b[0] - a[0]), 0]);
+  }
+  return out.length >= 3 ? out : null;
+}
+let pickable = [];
+function build(cut) {
+  det.traverse(o => o.geometry && o.geometry.dispose());
+  det.clear();
+  pickable = [];
+  const [start, len] = CUTS[cut];
+  for (const pc of PIECES) {
+    const prof = state.view === 'end' ? clipBelow(pc.p) : pc.p;
+    if (!prof) continue;
+    const pts = prof.map(([r, z]) => new THREE.Vector2(r / 100, z / 100));
+    const m = mats[pc.f];
+    const g = new THREE.LatheGeometry([...pts, pts[0]], Math.max(2, Math.round(96 * len / (2 * Math.PI))), start, len);
+    if (pc.poly) {  // a regular polygon whose flat faces sit at r, one per CMS sector (a face at the top, as in CMS)
+      const a = 2 * Math.PI / pc.poly, pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), z = pos.getZ(i), phi = Math.atan2(x, z), f = 1 / Math.cos(phi - Math.round(phi / a) * a);
+        pos.setX(i, x * f);
+        pos.setZ(i, z * f);
+      }
+    }
+    const parts = [new THREE.Mesh(g, m.face), new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), m.edge)];
+    if (len < 2 * Math.PI - 1e-6) {
+      for (const phi of [start, start + len]) {  // the cross-section where the detector is cut open
+        const cg = new THREE.ShapeGeometry(new THREE.Shape(pts));
+        for (const o of [new THREE.Mesh(cg, m.cap), new THREE.LineSegments(new THREE.EdgesGeometry(cg), m.edge)]) {
+          o.rotation.y = phi - Math.PI / 2;
+          parts.push(o);
+        }
+      }
+    }
+    for (const o of parts) {
+      o.userData = pc;
+      o.visible = pc.f !== 'solenoid' || showSolenoid;
+      det.add(o);
+      if (o.isMesh) pickable.push(o);
+    }
+  }
+}
+
+// ---- focus: the file pointed at in the list (or clicked) is lit and the rest faded; the one pointed at in the view glows
+let hover = null, sceneHover = null, pinned = null, showSolenoid = true;
+function applyFocus() {
+  const focus = hover || pinned;
+  for (const [id, m] of Object.entries(mats)) {
+    const dim = focus && id !== focus;
+    const base = id === 'solenoid' ? 0.16 : 1;
+    for (const mm of [m.face, m.cap]) {
+      mm.opacity = dim ? 0.07 : base;
+      mm.transparent = mm.opacity < 1;
+      mm.depthWrite = !mm.transparent;
+      mm.emissive.copy(m.color).multiplyScalar(focus === id || sceneHover === id ? 0.22 : 0);
+      mm.needsUpdate = true;
+    }
+    m.edge.opacity = dim ? 0.03 : 0.32;
+  }
+  for (const [id, el] of Object.entries(rows)) {
+    el.classList.toggle('dim', !!focus && id !== focus && el.tagName === 'BUTTON');
+    if (el.tagName === 'BUTTON') el.setAttribute('aria-pressed', String(pinned === id));
+  }
+}
+legend.addEventListener('pointerover', e => { const r = e.target.closest('button.row'); if (r) { hover = r.dataset.file; applyFocus(); } });
+legend.addEventListener('pointerout', e => { const r = e.target.closest('button.row'); if (r && !r.contains(e.relatedTarget)) { hover = null; applyFocus(); } });
+legend.addEventListener('focusin', e => { const r = e.target.closest('button.row'); if (r) { hover = r.dataset.file; applyFocus(); } });
+legend.addEventListener('focusout', () => { hover = null; applyFocus(); });
+legend.addEventListener('click', e => {
+  const r = e.target.closest('button.row');
+  if (!r) return;
+  pinned = pinned === r.dataset.file ? null : r.dataset.file;
+  applyFocus();
+});
+
+// ---- pointing at the detector
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let pointer = null, moved = false, down = null;
+function pick(x, y) {
+  const b = renderer.domElement.getBoundingClientRect();
+  ndc.set(((x - b.left) / b.width) * 2 - 1, -((y - b.top) / b.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(pickable.filter(o => o.visible && (!pinned || o.userData.f === pinned)), false);
+  return hits.length ? hits[0].object.userData : null;
+}
+renderer.domElement.addEventListener('pointermove', e => { pointer = [e.clientX, e.clientY]; moved = true; });
+renderer.domElement.addEventListener('pointerleave', () => { pointer = null; tip.style.opacity = 0; if (sceneHover) { sceneHover = null; applyFocus(); } });
+renderer.domElement.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;
+  const pc = pick(e.clientX, e.clientY);
+  pinned = pc && pc.f !== 'solenoid' && pinned !== pc.f ? pc.f : null;
+  applyFocus();
+});
+function updateTip() {
+  if (!pointer || !moved || anim) return;
+  moved = false;
+  const pc = pick(pointer[0], pointer[1]);
+  const f = pc && BYID[pc.f];
+  const want = f && f.id !== 'solenoid' ? f.id : null;
+  if (want !== sceneHover) { sceneHover = want; applyFocus(); }
+  if (!f) { tip.style.opacity = 0; return; }
+  tip.innerHTML = `<code>${f.names.join('<br>')}</code><span class="k">${pc.label}</span>${f.cov ? `<span class="k">${f.cov}</span>` : ''}`;
+  const b = view.getBoundingClientRect();
+  const x = Math.min(pointer[0] - b.left + 14, b.width - tip.offsetWidth - 8), y = Math.min(pointer[1] - b.top + 14, b.height - tip.offsetHeight - 8);
+  tip.style.transform = `translate(${Math.max(8, x)}px, ${Math.max(8, y)}px)`;
+  tip.style.opacity = 1;
+}
+
+// ---- views
+const VIEWS = { '3d': new THREE.Vector3(-0.4, 0.42, 0.81).normalize(), side: new THREE.Vector3(0, 0, 1), end: new THREE.Vector3(1, 0, 0) };
+const VIEW_CUT = { '3d': 'quarter', side: 'half', end: 'closed' };
+const VIEW_DIST = { '3d': 1.3, side: 1, end: 1 };  // the slanted view needs more room to fit the detector
+const ZOOMS = { all: 31, calo: 14, tracker: 5.8, pixel: 1.3 };
+const state = { view: '3d', zoom: 'all', cut: 'quarter' };
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let anim = null;
+function goTo(instant) {
+  const fit = Math.max(1, 1.45 / camera.aspect);  // a tall, narrow view needs to step back to fit the length
+  const to = VIEWS[state.view].clone().multiplyScalar(ZOOMS[state.zoom] * VIEW_DIST[state.view] * fit);
+  if (instant || reduce) { camera.position.copy(to); controls.target.set(0, 0, 0); controls.update(); return; }
+  const rel = camera.position.clone().sub(controls.target);
+  anim = { t0: performance.now(), target: controls.target.clone(), d0: rel.length(), d1: to.length(),
+           u0: rel.normalize(), q: new THREE.Quaternion().setFromUnitVectors(rel.clone().normalize(), to.clone().normalize()) };
+}
+function stepAnim(now) {
+  const u = Math.min(1, (now - anim.t0) / 750), e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
+  const dir = anim.u0.clone().applyQuaternion(new THREE.Quaternion().slerp(anim.q, e));
+  controls.target.lerpVectors(anim.target, new THREE.Vector3(), e);
+  camera.position.copy(controls.target).addScaledVector(dir, anim.d0 * (anim.d1 / anim.d0) ** e);
+  camera.lookAt(controls.target);
+  if (u === 1) anim = null;
+}
+function setPressed(group, v) {
+  document.querySelectorAll(`[data-group="${group}"] button`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+}
+document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const group = seg.dataset.group, v = b.dataset.v;
+  state[group] = v;
+  setPressed(group, v);
+  if (group === 'view') { state.cut = VIEW_CUT[v]; setPressed('cut', state.cut); build(state.cut); }
+  if (group === 'cut') build(v); else goTo(false);
+}));
+document.getElementById('sol').addEventListener('change', e => {
+  showSolenoid = e.target.checked;
+  det.children.forEach(o => { if (o.userData.f === 'solenoid') o.visible = showSolenoid; });
+});
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h, false);
+  labels.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+resize();
+// a link can open a given view: #view=side&zoom=calo&cut=half&file=csc
+const hp = new URLSearchParams(location.hash.slice(1));
+if (VIEWS[hp.get('view')]) state.view = hp.get('view'), state.cut = VIEW_CUT[state.view];
+if (ZOOMS[hp.get('zoom')]) state.zoom = hp.get('zoom');
+if (CUTS[hp.get('cut')]) state.cut = hp.get('cut');
+if (mats[hp.get('file')] && hp.get('file') !== 'solenoid') pinned = hp.get('file');
+for (const g of ['view', 'zoom', 'cut']) setPressed(g, state[g]);
+build(state.cut);
+applyFocus();
+goTo(true);
+renderer.setAnimationLoop(now => {
+  if (anim) stepAnim(now); else controls.update();
+  updateTip();
+  renderer.render(scene, camera);
+  labels.render(scene, camera);
+});
+</script>
+</body>
+</html>
